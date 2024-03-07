@@ -1,0 +1,26 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: Arial, sans-serif;
+  }
+  
+  .header {
+    background-color: #004d99;
+    color: #ffffff;
+    padding: 10px 20px;
+    text-align: center;
+  }
+  
+  .content {
+    display: flex;
+    flex-direction: column;
+    height: calc(100% - 50px); /* Adjust based on header height */
+  }
+  
+  #map {
+    flex-grow: 1; /* Allows the map to grow and fill available space, adjust this to control the size */
+    margin: 20px;
+    border: 1px solid #ccc; /* Optional: adds a border around the map */
+  }
+  
