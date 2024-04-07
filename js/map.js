@@ -13,54 +13,75 @@ map.scrollZoom.disable();
 map.on('load', () => {
     map.setFog({}); // Set the default atmosphere style
 
-    // Define points for the arrow
-    const beijing = [116.4074, 39.9042]; // Longitude, Latitude
-    const london = [-0.1276, 51.5072]; // Longitude, Latitude
+    const routes = [
+        [[116.4074, 39.9042], [-0.1276, 51.5072]], // Beijing to London
+        [[116.4074, 39.9042], [-74.0060, 40.7128]]   // Beijing to NewYork
+    ];
+    drawArrows(routes); // Draw multiple arrows
+});
 
-    // Add a source and layer for the arrow
-    map.addSource('route', {
-        'type': 'geojson',
-        'data': {
-            'type': 'Feature',
-            'properties': {},
-            'geometry': {
-                'type': 'LineString',
-                'coordinates': [beijing, london]
+function drawArrows(routes) {
+    routes.forEach((route, index) => {
+        let [start, end] = route;
+
+        // Adjust the end longitude to ensure the arrow takes the shortest path
+        const longitudeDifference = end[0] - start[0];
+        if (longitudeDifference > 180) {
+            end = [end[0] - 360, end[1]];
+        } else if (longitudeDifference < -180) {
+            end = [end[0] + 360, end[1]];
+        }
+
+        const uniqueId = `route-${index}-${Date.now()}`;
+
+        // Calculate the bearing from start to end point to rotate the arrowhead correctly
+        const bearing = turf.bearing(turf.point(start), turf.point(end));
+
+        // Add a source and layer for the arrow
+        map.addSource(uniqueId, {
+            'type': 'geojson',
+            'data': {
+                'type': 'Feature',
+                'properties': {
+                    'bearing': bearing
+                },
+                'geometry': {
+                    'type': 'LineString',
+                    'coordinates': [start, end]
+                }
             }
-        }
-    });
+        });
 
-    map.addLayer({
-        'id': 'route',
-        'type': 'line',
-        'source': 'route',
-        'layout': {
-            'line-join': 'round',
-            'line-cap': 'round'
-        },
-        'paint': {
-            'line-color': '#888',
-            'line-width': 6
-        }
-    });
-
-    // To create an arrow effect, we add another layer for the arrowhead
-    map.loadImage('https://docs.mapbox.com/mapbox-gl-js/assets/arrowhead.png', function(error, image) {
-        if (error) throw error;
-        map.addImage('arrowhead', image);
         map.addLayer({
-            'id': 'arrowhead',
-            'type': 'symbol',
-            'source': 'route',
+            'id': uniqueId,
+            'type': 'line',
+            'source': uniqueId,
             'layout': {
-                'icon-image': 'arrowhead',
-                'icon-size': 0.25,
+                'line-join': 'round',
+                'line-cap': 'round'
+            },
+            'paint': {
+                'line-color': '#888',
+                'line-width': 6
+            }
+        });
+
+        // Add another layer for the arrowhead using a built-in or custom icon
+        const arrowheadId = `arrowhead-${uniqueId}`;
+        map.addLayer({
+            'id': arrowheadId,
+            'type': 'symbol',
+            'source': uniqueId,
+            'layout': {
+                'icon-image': 'arrow', // Replace 'arrow' with your custom icon ID if using a custom icon
+                'icon-size': 0.5,
                 'icon-rotate': ['get', 'bearing'],
                 'icon-rotation-alignment': 'map',
                 'icon-ignore-placement': true,
-                'icon-offset': ['literal', [0, -15]],
+                'icon-allow-overlap': true,
+                'icon-offset': [0, -5],
                 'symbol-placement': 'line-center'
             }
         });
     });
-});
+}
