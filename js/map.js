@@ -2,7 +2,7 @@ mapboxgl.accessToken = 'pk.eyJ1IjoiZGt1aGNpZ3JvdXAiLCJhIjoiY2x0MDJlOXRvMHcxcjJpb
 const map = new mapboxgl.Map({
     container: 'map',
     style: 'mapbox://styles/mapbox/streets-v9',
-    projection: 'globe', // Display the map as a globe, since satellite-v9 defaults to Mercator
+    projection: 'mercator', // Use the Mercator projection for a 2D map
     zoom: 1,
     center: [30, 15]
 });
@@ -11,33 +11,30 @@ map.addControl(new mapboxgl.NavigationControl());
 map.scrollZoom.disable();
 
 map.on('load', () => {
-    map.setFog({}); // Set the default atmosphere style
+    map.setFog({}); // Optional: Adjust or remove this line as it's primarily for globe visualization
 
     const routes = [
         [[116.4074, 39.9042], [-0.1276, 51.5072]], // Beijing to London
-        [[116.4074, 39.9042], [-74.0060, 40.7128]]   // Beijing to NewYork
+        [[116.4074, 39.9042], [2.3522, 48.8566]], // Beijing to Paris
+        [[139.6917, 35.6895], [116.4074, 39.9042]] // Tokyo to Beijing
     ];
     drawArrows(routes); // Draw multiple arrows
 });
 
 function drawArrows(routes) {
     routes.forEach((route, index) => {
-        let [start, end] = route;
+        const [start, end] = route;
 
-        // Adjust the end longitude to ensure the arrow takes the shortest path
-        const longitudeDifference = end[0] - start[0];
-        if (longitudeDifference > 180) {
-            end = [end[0] - 360, end[1]];
-        } else if (longitudeDifference < -180) {
-            end = [end[0] + 360, end[1]];
-        }
+        // Generate curved coordinates for the line
+        const curveCoordinates = generateCurveCoordinates(start, end);
 
         const uniqueId = `route-${index}-${Date.now()}`;
 
-        // Calculate the bearing from start to end point to rotate the arrowhead correctly
-        const bearing = turf.bearing(turf.point(start), turf.point(end));
+        // Calculate the bearing from the midpoint to the endpoint to rotate the arrowhead correctly
+        const midpointIndex = Math.floor(curveCoordinates.length / 2);
+        const bearing = turf.bearing(turf.point(curveCoordinates[midpointIndex]), turf.point(end));
 
-        // Add a source and layer for the arrow
+        // Add a source and layer for the curved arrow
         map.addSource(uniqueId, {
             'type': 'geojson',
             'data': {
@@ -47,7 +44,7 @@ function drawArrows(routes) {
                 },
                 'geometry': {
                     'type': 'LineString',
-                    'coordinates': [start, end]
+                    'coordinates': curveCoordinates
                 }
             }
         });
@@ -84,4 +81,16 @@ function drawArrows(routes) {
             }
         });
     });
+}
+
+function generateCurveCoordinates(start, end) {
+    const coordinates = [];
+    const steps = 100;
+    for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const x = (1 - t) * (1 - t) * start[0] + 2 * (1 - t) * t * (start[0] + 0.5 * (end[0] - start[0])) + t * t * end[0];
+        const y = (1 - t) * (1 - t) * start[1] + 2 * (1 - t) * t * (start[1] + 2.5 * (end[1] - start[1])) + t * t * end[1];
+        coordinates.push([x, y]);
+    }
+    return coordinates;
 }
